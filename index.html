@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>11-VISIONARIES Weather Bulletin</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- PNG generation library -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+
+<body>
+
+    <header>
+        <h1>11-VISIONARIES</h1>
+        <p>WEATHER BULLETIN GENERATOR</p>
+    </header>
+
+    <main>
+
+        <!-- CONTROL PANEL -->
+        <section class="controls">
+
+            <h2>Bulletin Information</h2>
+
+            <label>Location</label>
+            <input id="location" value="Quezon City, Philippines">
+
+            <label>Date</label>
+            <input id="date" type="date">
+
+            <label>Bulletin Number</label>
+            <input id="bulletinNumber" value="01">
+
+            <label>Weather Synopsis</label>
+            <textarea id="synopsis">Enter weather synopsis here...</textarea>
+
+            <label>Forecast</label>
+            <textarea id="forecast">Enter forecast here...</textarea>
+
+            <label>Heat Index</label>
+            <input id="heatIndex" value="36°C">
+
+            <label>Warnings / Alerts</label>
+            <textarea id="warnings">No active warnings.</textarea>
+
+            <button onclick="updateBulletin()">
+                Update Bulletin
+            </button>
+
+            <button onclick="exportPNG()" class="export">
+                Export as PNG
+            </button>
+
+        </section>
+
+
+        <!-- BULLETIN -->
+        <section id="bulletin" class="bulletin">
+
+            <div class="bulletin-header">
+                <div>
+                    <h1>11-VISIONARIES</h1>
+                    <h2>WEATHER BULLETIN</h2>
+                </div>
+
+                <div class="bulletin-number">
+                    BULLETIN <span id="displayNumber">01</span>
+                </div>
+            </div>
+
+            <div class="location">
+                <strong id="displayLocation">
+                    Quezon City, Philippines
+                </strong>
+
+                <span id="displayDate"></span>
+            </div>
+
+
+            <div class="section">
+                <h3>WEATHER SYNOPSIS</h3>
+                <p id="displaySynopsis">
+                    Enter weather synopsis here...
+                </p>
+            </div>
+
+
+            <div class="section">
+                <h3>FORECAST</h3>
+                <p id="displayForecast">
+                    Enter forecast here...
+                </p>
+            </div>
+
+
+            <div class="section heat">
+                <h3>HEAT INDEX</h3>
+                <p id="displayHeatIndex">
+                    36°C
+                </p>
+            </div>
+
+
+            <div class="section warning">
+                <h3>WARNINGS & ALERTS</h3>
+                <p id="displayWarnings">
+                    No active warnings.
+                </p>
+            </div>
+
+
+            <footer>
+                11-VISIONARIES • WEATHER MONITORING
+            </footer>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
