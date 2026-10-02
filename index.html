@@ -1,127 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>11-VISIONARIES Weather Bulletin</title>
-
-    <link rel="stylesheet" href="style.css">
-
-    <!-- PNG generation library -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11-VISIONARIES Multi-Hazard Bulletin Generator</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
-
 <body>
 
-    <header>
-        <h1>11-VISIONARIES</h1>
-        <p>WEATHER BULLETIN GENERATOR</p>
-    </header>
+<header class="app-header">
+  <h1>11-VISIONARIES</h1>
+  <p>MULTI-HAZARD BULLETIN GENERATOR</p>
+</header>
 
-    <main>
+<main class="app">
 
-        <!-- CONTROL PANEL -->
-        <section class="controls">
+  <!-- ============ CONTROL PANEL ============ -->
+  <aside class="controls" id="controls">
+    <div class="toolbar">
+      <button class="btn primary" id="btnPng">⬇ Generate PNG</button>
+      <button class="btn" id="btnPrint">🖨 Print</button>
+      <button class="btn danger" id="btnReset">↺ Reset</button>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
 
-            <h2>Bulletin Information</h2>
+    <div id="formSections"></div>
 
-            <label>Location</label>
-            <input id="location" value="Quezon City, Philippines">
+    <details class="panel" open>
+      <summary>Warnings and Alerts</summary>
+      <div class="panel-body">
+        <div id="alertList"></div>
+        <button class="btn" id="btnAddAlert">＋ Add Alert</button>
+      </div>
+    </details>
 
-            <label>Date</label>
-            <input id="date" type="date">
+    <details class="panel" open>
+      <summary>Satellite Image</summary>
+      <div class="panel-body">
+        <label class="btn upload">⬆ Upload Satellite Image
+          <input type="file" id="satFile" accept="image/*" hidden>
+        </label>
+        <button class="btn danger" id="btnClearImg">✕ Clear Satellite Image</button>
+        <div id="satFields"></div>
+      </div>
+    </details>
 
-            <label>Bulletin Number</label>
-            <input id="bulletinNumber" value="01">
+    <p class="note-small">User-entered information. Verify official weather and hazard bulletins before making safety decisions.</p>
+  </aside>
 
-            <label>Weather Synopsis</label>
-            <textarea id="synopsis">Enter weather synopsis here...</textarea>
+  <!-- ============ LIVE PREVIEW ============ -->
+  <section class="preview-wrap" id="previewWrap">
+    <div id="scaler">
 
-            <label>Forecast</label>
-            <textarea id="forecast">Enter forecast here...</textarea>
+      <!-- EXPORT CANVAS: fixed 1080 x 1350 -->
+      <div id="bulletin">
 
-            <label>Heat Index</label>
-            <input id="heatIndex" value="36°C">
+        <div class="b-head">
+          <div class="b-head-text">
+            <div class="b-brand">11-VISIONARIES</div>
+            <div class="b-title">MULTI-HAZARD BULLETIN</div>
+          </div>
+          <div class="b-num">
+            <small>BULLETIN NO.</small>
+            <strong data-out="number"></strong>
+          </div>
+        </div>
 
-            <label>Warnings / Alerts</label>
-            <textarea id="warnings">No active warnings.</textarea>
+        <div class="b-demo" id="demoBanner">DEMO BULLETIN — NOT AN OFFICIAL WARNING</div>
 
-            <button onclick="updateBulletin()">
-                Update Bulletin
-            </button>
+        <div class="b-pill">
+          <span><b>ISSUED:</b> <span data-out="dateTime"></span></span>
+          <span><b>VALID UNTIL:</b> <span data-out="valid"></span></span>
+          <span><b>AREA:</b> <span data-out="area"></span></span>
+        </div>
 
-            <button onclick="exportPNG()" class="export">
-                Export as PNG
-            </button>
+        <!-- A. WEATHER FORECAST -->
+        <div class="b-block">
+          <div class="b-bar">☀ A. WEATHER FORECAST</div>
+          <div class="b-row"><div class="k">SYNOPSIS</div><div class="v pre" data-out="synopsis"></div></div>
+          <div class="b-row"><div class="k">GENERAL FORECAST</div><div class="v pre" data-out="forecast"></div></div>
+          <div class="b-row"><div class="k">CONDITION</div><div class="v" data-out="condition"></div></div>
+          <div class="b-metrics">
+            <div><small>TEMPERATURE</small><b data-out="temp"></b></div>
+            <div><small>RAINFALL</small><b data-out="rain"></b></div>
+            <div><small>WIND</small><b data-out="wind"></b></div>
+            <div><small>HUMIDITY</small><b data-out="humidity"></b></div>
+          </div>
+        </div>
 
-        </section>
-
-
-        <!-- BULLETIN -->
-        <section id="bulletin" class="bulletin">
-
-            <div class="bulletin-header">
-                <div>
-                    <h1>11-VISIONARIES</h1>
-                    <h2>WEATHER BULLETIN</h2>
-                </div>
-
-                <div class="bulletin-number">
-                    BULLETIN <span id="displayNumber">01</span>
-                </div>
+        <div class="b-duo">
+          <!-- B. HEAT INDEX -->
+          <div class="b-block" id="heatBlock">
+            <div class="b-bar">🌡 B. HEAT INDEX</div>
+            <div class="heat-main">
+              <div class="heat-val" data-out="heatValue"></div>
+              <div class="heat-cat" id="heatCatBox" data-out="heatCat"></div>
             </div>
+            <div class="mini"><b>PEAK HEAT:</b> <span data-out="heatPeak"></span></div>
+            <div class="mini"><b>AFFECTED:</b> <span data-out="heatAreas"></span></div>
+          </div>
 
-            <div class="location">
-                <strong id="displayLocation">
-                    Quezon City, Philippines
-                </strong>
-
-                <span id="displayDate"></span>
+          <!-- C. TROPICAL CYCLONE -->
+          <div class="b-block">
+            <div class="b-bar">🌀 C. TROPICAL CYCLONE THREAT POTENTIAL</div>
+            <div class="tc-grid">
+              <div><small>NAME</small><b data-out="tcName"></b></div>
+              <div><small>THREAT LEVEL</small><b id="tcLevelBox" data-out="tcLevel"></b></div>
+              <div class="wide"><small>DISTANCE / LOCATION</small><b data-out="tcLoc"></b></div>
+              <div><small>MAX WIND</small><b data-out="tcWind"></b></div>
+              <div><small>GUSTINESS</small><b data-out="tcGust"></b></div>
+              <div class="wide"><small>MOVEMENT</small><b data-out="tcMove"></b></div>
             </div>
+            <div class="mini"><b>EFFECTS:</b> <span data-out="tcEffects"></span></div>
+          </div>
+        </div>
 
+        <div class="b-duo b-duo-mid">
+          <!-- E. SATELLITE -->
+          <div class="b-block">
+            <div class="b-bar">🛰 E. SATELLITE IMAGE</div>
+            <div class="sat-box" id="satBox"><span id="satEmpty">No image uploaded</span></div>
+            <div class="mini"><b>CAPTION:</b> <span data-out="satCaption"></span></div>
+            <div class="mini"><b>SOURCE:</b> <span data-out="satSource"></span></div>
+          </div>
 
-            <div class="section">
-                <h3>WEATHER SYNOPSIS</h3>
-                <p id="displaySynopsis">
-                    Enter weather synopsis here...
-                </p>
-            </div>
+          <!-- D. ALERTS -->
+          <div class="b-block">
+            <div class="b-bar">⚠ D. WARNINGS AND ALERTS</div>
+            <div id="alertOut" class="alert-out"></div>
+          </div>
+        </div>
 
+        <!-- F. SEVERE WEATHER BULLETIN -->
+        <div class="b-block b-severe">
+          <div class="b-bar">⛈ F. SEVERE WEATHER BULLETIN</div>
+          <div class="sev-grid">
+            <div><h4>SITUATION</h4><p class="pre" data-out="sevSituation"></p></div>
+            <div><h4>EXPECTED HAZARDS</h4><p class="pre" data-out="sevHazards"></p></div>
+            <div><h4>POSSIBLE IMPACTS</h4><p class="pre" data-out="sevImpacts"></p></div>
+            <div><h4>SAFETY REMINDERS</h4><p class="pre" data-out="sevSafety"></p></div>
+          </div>
+          <div class="b-next"><b>NEXT UPDATE:</b> <span data-out="sevNext"></span></div>
+        </div>
 
-            <div class="section">
-                <h3>FORECAST</h3>
-                <p id="displayForecast">
-                    Enter forecast here...
-                </p>
-            </div>
+        <div class="b-foot">
+          <b>11-VISIONARIES • MULTI-HAZARD BULLETIN</b>
+          <span>For educational and school information use.</span>
+          <span>Always verify official warnings with authorized government weather and disaster agencies.</span>
+          <span class="ue">User-entered information. Verify official weather and hazard bulletins before making safety decisions. Prepared by: <span data-out="by"></span></span>
+        </div>
 
+      </div>
+    </div>
+  </section>
 
-            <div class="section heat">
-                <h3>HEAT INDEX</h3>
-                <p id="displayHeatIndex">
-                    36°C
-                </p>
-            </div>
+</main>
 
-
-            <div class="section warning">
-                <h3>WARNINGS & ALERTS</h3>
-                <p id="displayWarnings">
-                    No active warnings.
-                </p>
-            </div>
-
-
-            <footer>
-                11-VISIONARIES • WEATHER MONITORING
-            </footer>
-
-        </section>
-
-    </main>
-
-    <script src="script.js"></script>
-
+<script src="script.js"></script>
 </body>
 </html>
