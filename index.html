@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>11-VISIONARIES Multi-Hazard Bulletin Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
@@ -19,6 +22,7 @@
   <!-- ============ CONTROL PANEL ============ -->
   <aside class="controls" id="controls">
     <div class="toolbar">
+      <button class="btn fetch" id="btnPagasa">📡 Fetch from PAGASA</button>
       <button class="btn primary" id="btnPng">⬇ Generate PNG</button>
       <button class="btn" id="btnPrint">🖨 Print</button>
       <button class="btn danger" id="btnReset">↺ Reset</button>
@@ -58,8 +62,16 @@
 
         <div class="b-head">
           <div class="b-head-text">
-            <div class="b-brand">11-VISIONARIES</div>
-            <div class="b-title">MULTI-HAZARD BULLETIN</div>
+            <svg class="eye" viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 35C25 4 95 4 116 35C95 66 25 66 4 35Z" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.85)" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="60" cy="35" r="18" fill="rgba(196,181,253,.35)" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+              <circle cx="60" cy="35" r="8" fill="rgba(255,255,255,.75)"/>
+              <path d="M60 2V-4M32 9L28 3M88 9L92 3" stroke="rgba(249,200,14,.9)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div class="b-brand">11-VISIONARIES</div>
+              <div class="b-title">MULTI-HAZARD BULLETIN</div>
+            </div>
           </div>
           <div class="b-num">
             <small>BULLETIN NO.</small>
@@ -97,6 +109,7 @@
               <div class="heat-val" data-out="heatValue"></div>
               <div class="heat-cat" id="heatCatBox" data-out="heatCat"></div>
             </div>
+            <div class="heat-desc" data-out="heatDesc"></div>
             <div class="mini"><b>PEAK HEAT:</b> <span data-out="heatPeak"></span></div>
             <div class="mini"><b>AFFECTED:</b> <span data-out="heatAreas"></span></div>
           </div>

@@ -14,12 +14,12 @@ const TC_LEVELS = ["","None","Low","Moderate","High","Active"];
 const SECTIONS = [
   ["Bulletin Information", [
     ["number","Bulletin Number"],["date","Date","date"],["time","Time","time"],
-    ["valid","Valid Until"],["area","Area / Location"],["by","Prepared By"]]],
+    ["area","Area / Location"],["by","Prepared By"]]],
   ["Weather Forecast", [
     ["synopsis","Synopsis","ta"],["forecast","General Forecast","ta"],["temp","Temperature"],
     ["rain","Rainfall"],["wind","Wind"],["humidity","Humidity"],["condition","Weather Condition"]]],
   ["Heat Index", [
-    ["heatValue","Heat Index Value"],["heatCat","Heat Index Category","sel",HEAT_CATS],
+    ["heatValue","Heat Index Value (°C) — category is automatic"],
     ["heatPeak","Time of Peak Heat"],["heatAreas","Affected Areas"]]],
   ["Tropical Cyclone Threat Potential", [
     ["tcName","Cyclone Name"],["tcLoc","Distance / Location"],["tcWind","Maximum Wind"],
@@ -27,7 +27,7 @@ const SECTIONS = [
     ["tcEffects","Expected Effects","ta"]]],
   ["Severe Weather Bulletin", [
     ["sevSituation","Situation","ta"],["sevHazards","Expected Hazards","ta"],
-    ["sevImpacts","Possible Impacts","ta"],["sevSafety","Safety Reminders","ta"],["sevNext","Next Update"]]]
+    ["sevImpacts","Possible Impacts","ta"],["sevSafety","Safety Reminders","ta"]]]
 ];
 const SAT_FIELDS = [["satCaption","Image Caption"],["satSource","Image Source"]];
 
@@ -113,25 +113,51 @@ function renderAlertForm() {
 function setOut(key, text) {
   document.querySelectorAll(`[data-out="${key}"]`).forEach(el => { el.textContent = text; });
 }
-function heatClass() {
-  const n = parseFloat(String(state.heatValue).replace(/[^\d.]/g, ""));
-  const c = String(state.heatCat).toLowerCase();
-  if (c.includes("extreme danger") || n >= 52) return "heat-extdanger";
-  if (c.includes("danger") || n >= 42) return "heat-danger";
-  if (c.includes("extreme caution") || n >= 33) return "heat-extcaution";
-  if (c.includes("caution") || n >= 27) return "heat-caution";
-  return "";
+/* PAGASA Heat Index classification */
+function classifyHeat(raw) {
+  const n = parseFloat(String(raw).replace(/[^\d.]/g, ""));
+  if (!String(raw).trim() || isNaN(n)) return {cat: NS, desc: "", cls: ""};
+  if (n >= 52) return {cat: "Extreme Danger", cls: "heat-extdanger", desc: "Heat stroke is imminent."};
+  if (n >= 42) return {cat: "Danger", cls: "heat-danger", desc: "Heat cramps and heat exhaustion are likely; heat stroke is probable with continued activity."};
+  if (n >= 33) return {cat: "Extreme Caution", cls: "heat-extcaution", desc: "Heat cramps and heat exhaustion are possible. Continuing activity could result in heat stroke."};
+  if (n >= 27) return {cat: "Caution", cls: "heat-caution", desc: "Fatigue is possible with prolonged exposure and activity. Continuing activity could result in heat cramps."};
+  return {cat: "Not classified", cls: "", desc: "Below the PAGASA Caution range (27°C)."};
 }
+
+/* Automatic 24-hour validity and next issuance (Thursday -> Sunday, otherwise next day) */
+function issuance() {
+  if (!state.date) return null;
+  const [y, m, d] = state.date.split("-").map(Number);
+  const [hh, mm] = (state.time || "00:00").split(":").map(Number);
+  const start = new Date(y, m - 1, d, hh || 0, mm || 0);
+  const end = new Date(start.getTime() + 24 * 3600 * 1000);
+  const next = new Date(y, m - 1, d + (start.getDay() === 4 ? 3 : 1));
+  const f = {day: "2-digit", month: "long", year: "numeric"};
+  return {
+    valid: `${fmtTime(String(end.getHours()).padStart(2, "0") + ":" + String(end.getMinutes()).padStart(2, "0"))}, ${end.toLocaleDateString("en-PH", f)}`,
+    next: next.toLocaleDateString("en-PH", {weekday: "long", ...f})
+  };
+}
+
 function render() {
-  const keys = ["number","valid","area","by","synopsis","forecast","condition","temp","rain","wind","humidity",
-    "heatValue","heatCat","heatPeak","heatAreas","tcName","tcLoc","tcWind","tcGust","tcMove","tcLevel","tcEffects",
-    "satCaption","satSource","sevSituation","sevHazards","sevImpacts","sevSafety","sevNext"];
+  const keys = ["number","area","by","synopsis","forecast","condition","temp","rain","wind","humidity",
+    "heatValue","heatPeak","heatAreas","tcName","tcLoc","tcWind","tcGust","tcMove","tcLevel","tcEffects",
+    "satCaption","satSource","sevSituation","sevHazards","sevImpacts","sevSafety"];
   keys.forEach(k => setOut(k, val(k)));
   const dt = [fmtDate(state.date), fmtTime(state.time)].filter(Boolean).join(" • ");
   setOut("dateTime", dt || NS);
+  const iss = issuance();
+  setOut("valid", iss ? iss.valid : NS);
+  setOut("sevNext", iss ? iss.next : NS);
+  const hc = classifyHeat(state.heatValue);
+  setOut("heatCat", hc.cat);
+  setOut("heatDesc", hc.desc);
 
-  $("demoBanner").style.display = state.demo ? "block" : "none";
-  $("heatCatBox").className = "heat-cat " + heatClass();
+  const bn = $("demoBanner");
+  if (state.demo) { bn.style.display = "block"; bn.style.background = ""; bn.textContent = "DEMO BULLETIN — NOT AN OFFICIAL WARNING"; }
+  else if (state.auto) { bn.style.display = "block"; bn.style.background = "#f57c00"; bn.textContent = "AUTO-FETCHED FROM PAGASA PUBLIC PAGES — VERIFY OFFICIAL BULLETINS"; }
+  else bn.style.display = "none";
+  $("heatCatBox").className = "heat-cat " + hc.cls;
   const tl = String(state.tcLevel).toLowerCase();
   $("tcLevelBox").className = tl === "active" || tl === "high" ? "tc-active" : tl === "moderate" ? "tc-mod" : tl === "low" ? "tc-low" : "";
 
@@ -156,6 +182,74 @@ function fitPreview() {
   wrap.style.height = Math.round(H * s) + "px";
   wrap.style.width = window.innerWidth > 1100 ? Math.round(W * s) + "px" : "100%";
   wrap.style.flex = window.innerWidth > 1100 ? "none" : "";
+}
+
+/* ---------- PAGASA auto-fetch (best effort, via public CORS proxies) ---------- */
+const PAGASA_WEATHER = "https://www.pagasa.dost.gov.ph/weather";
+const PAGASA_TC = "https://www.pagasa.dost.gov.ph/tropical-cyclone/severe-weather-bulletin";
+
+async function proxied(url) {
+  const proxies = [u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), u => "https://corsproxy.io/?" + encodeURIComponent(u)];
+  for (const p of proxies) {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000);
+      const r = await fetch(p(url), {signal: ctl.signal}); clearTimeout(t);
+      if (r.ok) { const html = await r.text(); if (html.length > 500) return html; }
+    } catch (e) { /* try next proxy */ }
+  }
+  return null;
+}
+function htmlToText(html) {
+  const d = new DOMParser().parseFromString(html, "text/html");
+  d.querySelectorAll("script,style,noscript").forEach(n => n.remove());
+  return (d.body.textContent || "").replace(/\s+/g, " ").trim();
+}
+
+async function fetchPAGASA() {
+  const btn = $("btnPagasa"); btn.disabled = true;
+  setStatus("Fetching PAGASA public pages…");
+  const got = [];
+  try {
+    const wx = await proxied(PAGASA_WEATHER);
+    if (wx) {
+      const t = htmlToText(wx);
+      const iss = t.match(/Issued at:?\s*(\d{1,2}):(\d{2})\s*(AM|PM),?\s*(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);
+      const mo = iss ? new Date(`${iss[5]} 1, 2000`).getMonth() : NaN;
+      if (iss && !isNaN(mo)) {
+        const hr = (+iss[1] % 12) + (iss[3].toUpperCase() === "PM" ? 12 : 0);
+        state.date = `${iss[6]}-${String(mo + 1).padStart(2, "0")}-${iss[4].padStart(2, "0")}`;
+        state.time = `${String(hr).padStart(2, "0")}:${iss[2]}`;
+        got.push("issuance time");
+      }
+      const syn = t.match(/SYNOPSIS:?\s*(.+?)\s*Forecast Weather Condition/i);
+      if (syn) { state.synopsis = syn[1]; got.push("synopsis"); }
+      const fc = t.match(/Forecast Weather Conditions?\s*(?:Place Weather Condition Caused By Impacts)?\s*(.+?)\s*Forecast Wind/i);
+      if (fc) { state.forecast = fc[1].slice(0, 420); got.push("forecast"); }
+      const cd = t.match(/Metro Manila[^.]*?((?:Partly )?[Cc]loudy skies with [a-z ,]+?)\s+(?:Localized|Easterlies|Northeast|Shear|ITCZ|Southwest|Intertropical|Tail|Low|Cold|Possible|No significant)/);
+      if (cd) state.condition = cd[1];
+      const tp = t.match(/Temperature\s+([\d.]+)\s*°C[\s\S]*?([\d.]+)\s*°C/);
+      if (tp) state.temp = `${tp[2]}°C – ${tp[1]}°C (Diliman, QC)`;
+    }
+    const tc = await proxied(PAGASA_TC);
+    if (tc) {
+      const t = htmlToText(tc);
+      const m = t.match(/(Tropical Depression|Tropical Storm|Severe Tropical Storm|Typhoon|Super Typhoon)\s+[“"']?([A-Za-z]+)/);
+      if (m) {
+        state.tcName = `${m[1]} ${m[2]}`;
+        state.sevSituation = t.slice(m.index, m.index + 420);
+        got.push("tropical cyclone bulletin");
+      }
+    }
+    if (got.length) {
+      state.auto = true; state.demo = false;
+      syncFormFromState(); render();
+      setStatus("Fetched from PAGASA: " + got.join(", ") + ". Check every field against the official bulletin.", "ok");
+    } else {
+      setStatus("Could not read PAGASA pages (blocked or changed format). Enter information manually.", "err");
+    }
+  } catch (err) {
+    setStatus("PAGASA fetch failed: " + err.message, "err");
+  } finally { btn.disabled = false; }
 }
 
 /* ---------- Events ---------- */
@@ -189,6 +283,7 @@ function bind() {
   };
   $("btnPrint").onclick = () => window.print();
   $("btnPng").onclick = generatePNG;
+  $("btnPagasa").onclick = fetchPAGASA;
   window.addEventListener("resize", fitPreview);
 }
 
@@ -212,7 +307,7 @@ async function generatePNG() {
   try {
     if (typeof html2canvas === "undefined") throw new Error("Export library not loaded. Check your internet connection.");
     render();
-    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    if (document.fonts) { await Promise.all([document.fonts.load("900 40px Montserrat"), document.fonts.load("800 20px Montserrat"), document.fonts.load("400 14px Poppins"), document.fonts.load("700 14px Poppins")]).catch(() => {}); await document.fonts.ready; }
     await preloadImage(state.image);          // make sure uploaded image is fully loaded
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
