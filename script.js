@@ -6,6 +6,10 @@ const HAZARDS = ["Thunderstorm","Heavy Rainfall","Flood","Flash Flood","Landslid
 const LEVELS = ["INFORMATION","ADVISORY","WATCH","WARNING","SEVERE WARNING"];
 const LEVEL_CLASS = {"INFORMATION":"a-info","ADVISORY":"a-adv","WATCH":"a-watch","WARNING":"a-warn","SEVERE WARNING":"a-sev"};
 const ENSO = ["","ENSO-Neutral","El Niño Watch","El Niño Alert","El Niño Advisory","La Niña Watch","La Niña Alert","La Niña Advisory"];
+/* Gauge needle position (-2 La Niña ... +2 El Niño) is set automatically from the selected status */
+const ENSO_POS = {"ENSO-Neutral":0,"El Niño Watch":0.6,"El Niño Alert":1,"El Niño Advisory":1.4,"La Niña Watch":-0.6,"La Niña Alert":-1,"La Niña Advisory":-1.4};
+const ENSO_DESC = {"ENSO-Neutral":"Neither El Niño nor La Niña conditions.","El Niño Watch":"El Niño may develop within the next few months.","El Niño Alert":"El Niño is likely to develop.","El Niño Advisory":"El Niño conditions are present.",
+  "La Niña Watch":"La Niña may develop within the next few months.","La Niña Alert":"La Niña is likely to develop.","La Niña Advisory":"La Niña conditions are present."};
 const TC_LEVELS = ["","None","Low","Moderate","High","Active"];
 const TCWS = ["","1","2","3","4","5"];
 const DEPED_OPTS = [["auto","Auto (from heat index and TCWS)"],["HAYO","Level 1 — Hayo"],["HINAY","Level 2 — Hinay"],["HINGA","Level 3 — Hinga"],["HINTO","Level 4 — Hinto"]];
@@ -15,7 +19,7 @@ const SECTIONS = [
   ["Bulletin Information", [["number","Bulletin Number"],["date","Date","date"],["time","Time","time"],["area","Area / Location"],["by","Prepared By"]]],
   ["Weather Forecast", [["synopsis","Synopsis","ta"],["condition","Weather Condition","ta"],["temp","Temperature"],["rain","Rainfall"],["wind","Wind"],["humidity","Humidity"]]],
   ["Heat Index", [["heatValue","Heat Index Value (number only)","number"]]],
-  ["El Niño / La Niña Status", [["ensoStatus","Status","sel",ENSO],["ensoIndex","Index value (ONI, −2 to +2)","number"]]],
+  ["El Niño / La Niña Status", [["ensoStatus","Status (gauge updates automatically)","sel",ENSO]]],
   ["Tropical Cyclone Threat Potential (leave empty to hide)", [
     ["tcName","Cyclone Name"],["tcLoc","Distance / Location"],["tcWind","Maximum Wind"],["tcGust","Gustiness"],["tcMove","Movement"],
     ["tcws","Wind Signal (TCWS No.)","sel",TCWS],["tcLevel","Threat Level","sel",TC_LEVELS],["tcEffects","Expected Effects","ta"]]],
@@ -34,7 +38,7 @@ function demoState() {
     synopsis: "DEMO: Sample synopsis text. Replace it with your own information.",
     condition: "DEMO: Partly cloudy to cloudy skies with isolated rainshowers or thunderstorms.",
     temp: "25°C – 33°C", rain: "Light to moderate", wind: "Light to moderate, E to NE", humidity: "78%",
-    heatValue: "39", ensoStatus: "ENSO-Neutral", ensoIndex: "0.1",
+    heatValue: "39", ensoStatus: "ENSO-Neutral",
     tcName: "Sample Storm", tcLoc: "Sample: 755 km east of the area", tcWind: "85 km/h", tcGust: "up to 105 km/h", tcMove: "WNW at 20 km/h",
     tcws: "", tcLevel: "Active", tcEffects: "Sample: rough seas over the eastern seaboard.",
     depedMode: "auto", quakeLabel: "Quezon City", quakeLat: "14.676", quakeLon: "121.044", quakeChecked: false,
@@ -152,9 +156,9 @@ function render() {
   $("heatDesc").textContent = hc.desc;
 
   /* ENSO */
-  const idx = parseFloat(state.ensoIndex);
+  const idx = ENSO_POS[state.ensoStatus] ?? NaN;
   $("gauge").innerHTML = gaugeSVG(idx);
-  $("ensoIdx").textContent = isNaN(idx) ? "Index: " + NS : "Index: " + (idx > 0 ? "+" : "") + idx;
+  $("ensoIdx").textContent = ENSO_DESC[state.ensoStatus] || "";
 
   /* tropical cyclone: whole block disappears when nothing is entered */
   const tcKeys = ["tcName","tcLoc","tcWind","tcGust","tcMove","tcws","tcLevel","tcEffects"];
