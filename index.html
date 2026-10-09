@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
@@ -26,27 +27,27 @@
       <button class="btn primary" id="btnPng">⬇ Generate PNG</button>
       <button class="btn" id="btnPrint">🖨 Print</button>
       <button class="btn danger" id="btnReset">↺ Reset</button>
+      <a class="btn" href="suspension.html" style="text-decoration:none">🏫 Suspension Predictor</a>
     </div>
     <div id="status" class="status" role="status" aria-live="polite"></div>
 
     <div id="formSections"></div>
 
-    <details class="panel" open>
-      <summary>Warnings and Alerts</summary>
+    <details class="panel"><summary>Earthquakes (PHIVOLCS, 300 km radius)</summary>
       <div class="panel-body">
-        <div id="alertList"></div>
-        <button class="btn" id="btnAddAlert">＋ Add Alert</button>
+        <div id="quakeFields"></div>
+        <button class="btn fetch" id="btnQuake">📡 Fetch from PHIVOLCS</button>
       </div>
     </details>
 
-    <details class="panel" open>
-      <summary>Satellite Image</summary>
+    <details class="panel" open><summary>Warnings and Alerts</summary>
+      <div class="panel-body"><div id="alertList"></div><button class="btn" id="btnAddAlert">＋ Add Alert</button></div>
+    </details>
+
+    <details class="panel"><summary>Satellite Image (source: DOST-PAGASA)</summary>
       <div class="panel-body">
-        <label class="btn upload">⬆ Upload Satellite Image
-          <input type="file" id="satFile" accept="image/*" hidden>
-        </label>
+        <label class="btn upload">⬆ Upload Satellite Image<input type="file" id="satFile" accept="image/*" hidden></label>
         <button class="btn danger" id="btnClearImg">✕ Clear Satellite Image</button>
-        <div id="satFields"></div>
       </div>
     </details>
 
@@ -56,8 +57,6 @@
   <!-- ============ LIVE PREVIEW ============ -->
   <section class="preview-wrap" id="previewWrap">
     <div id="scaler">
-
-      <!-- EXPORT CANVAS: fixed 1080 x 1350 -->
       <div id="bulletin">
 
         <div class="b-head">
@@ -73,13 +72,10 @@
               <div class="b-title">MULTI-HAZARD BULLETIN</div>
             </div>
           </div>
-          <div class="b-num">
-            <small>BULLETIN NO.</small>
-            <strong data-out="number"></strong>
-          </div>
+          <div class="b-num"><small>BULLETIN NO.</small><strong data-out="number"></strong></div>
         </div>
 
-        <div class="b-demo" id="demoBanner">DEMO BULLETIN — NOT AN OFFICIAL WARNING</div>
+        <div class="b-demo" id="demoBanner"></div>
 
         <div class="b-pill">
           <span><b>ISSUED:</b> <span data-out="dateTime"></span></span>
@@ -87,12 +83,10 @@
           <span><b>AREA:</b> <span data-out="area"></span></span>
         </div>
 
-        <!-- A. WEATHER FORECAST -->
         <div class="b-block">
-          <div class="b-bar">☀ A. WEATHER FORECAST</div>
+          <div class="b-bar">☀ 24-HOUR WEATHER FORECAST</div>
           <div class="b-row"><div class="k">SYNOPSIS</div><div class="v pre" data-out="synopsis"></div></div>
-          <div class="b-row"><div class="k">GENERAL FORECAST</div><div class="v pre" data-out="forecast"></div></div>
-          <div class="b-row"><div class="k">CONDITION</div><div class="v" data-out="condition"></div></div>
+          <div class="b-row"><div class="k">WEATHER CONDITION</div><div class="v pre" data-out="condition"></div></div>
           <div class="b-metrics">
             <div><small>TEMPERATURE</small><b data-out="temp"></b></div>
             <div><small>RAINFALL</small><b data-out="rain"></b></div>
@@ -101,67 +95,74 @@
           </div>
         </div>
 
-        <div class="b-duo">
-          <!-- B. HEAT INDEX -->
-          <div class="b-block" id="heatBlock">
-            <div class="b-bar">🌡 B. HEAT INDEX</div>
-            <div class="heat-main">
-              <div class="heat-val" data-out="heatValue"></div>
-              <div class="heat-cat" id="heatCatBox" data-out="heatCat"></div>
-            </div>
-            <div class="heat-desc" data-out="heatDesc"></div>
-            <div class="mini"><b>PEAK HEAT:</b> <span data-out="heatPeak"></span></div>
-            <div class="mini"><b>AFFECTED:</b> <span data-out="heatAreas"></span></div>
-          </div>
-
-          <!-- C. TROPICAL CYCLONE -->
+        <div class="b-flex row2">
           <div class="b-block">
-            <div class="b-bar">🌀 C. TROPICAL CYCLONE THREAT POTENTIAL</div>
+            <div class="b-bar">🌡 HEAT INDEX</div>
+            <div class="heat-main">
+              <div class="heat-val" id="heatVal"></div>
+              <div class="heat-cat" id="heatCatBox"></div>
+            </div>
+            <div class="heat-desc" id="heatDesc"></div>
+          </div>
+          <div class="b-block">
+            <div class="b-bar">🌊 EL NIÑO / LA NIÑA STATUS</div>
+            <div class="enso"><div id="gauge"></div><div><div class="enso-status" data-out="ensoStatus"></div><div class="mini" id="ensoIdx"></div></div></div>
+          </div>
+          <div class="b-block" id="tcBlock">
+            <div class="b-bar">🌀 TROPICAL CYCLONE THREAT</div>
             <div class="tc-grid">
               <div><small>NAME</small><b data-out="tcName"></b></div>
-              <div><small>THREAT LEVEL</small><b id="tcLevelBox" data-out="tcLevel"></b></div>
-              <div class="wide"><small>DISTANCE / LOCATION</small><b data-out="tcLoc"></b></div>
-              <div><small>MAX WIND</small><b data-out="tcWind"></b></div>
-              <div><small>GUSTINESS</small><b data-out="tcGust"></b></div>
-              <div class="wide"><small>MOVEMENT</small><b data-out="tcMove"></b></div>
+              <div><small>THREAT / SIGNAL</small><b id="tcLevelBox"></b></div>
+              <div class="wide"><small>LOCATION</small><b data-out="tcLoc"></b></div>
+              <div><small>MAX WIND / GUST</small><b id="tcWinds"></b></div>
+              <div><small>MOVEMENT</small><b data-out="tcMove"></b></div>
             </div>
             <div class="mini"><b>EFFECTS:</b> <span data-out="tcEffects"></span></div>
           </div>
         </div>
 
-        <div class="b-duo b-duo-mid">
-          <!-- E. SATELLITE -->
-          <div class="b-block">
-            <div class="b-bar">🛰 E. SATELLITE IMAGE</div>
-            <div class="sat-box" id="satBox"><span id="satEmpty">No image uploaded</span></div>
-            <div class="mini"><b>CAPTION:</b> <span data-out="satCaption"></span></div>
-            <div class="mini"><b>SOURCE:</b> <span data-out="satSource"></span></div>
+        <div class="b-flex row3">
+          <div class="b-block" style="flex:1.35">
+            <div class="b-bar">🌐 EARTHQUAKES • TOP 3 WITHIN 300 KM</div>
+            <div class="mini" id="quakeHead"></div>
+            <div id="quakeOut" class="quake-out"></div>
+            <div class="src">Source: PHIVOLCS</div>
           </div>
+          <div class="b-block" style="flex:1">
+            <div class="b-bar">🏫 DEPED LEARNING CONTINUITY LEVEL</div>
+            <div id="depedOut" class="deped-out"></div>
+          </div>
+        </div>
 
-          <!-- D. ALERTS -->
+        <div class="b-flex b-duo-mid">
           <div class="b-block">
-            <div class="b-bar">⚠ D. WARNINGS AND ALERTS</div>
+            <div class="b-bar">🛰 SATELLITE IMAGE</div>
+            <div class="sat-box" id="satBox"></div>
+            <div class="src">Source: DOST-PAGASA</div>
+          </div>
+          <div class="b-block">
+            <div class="b-bar">⚠ WARNINGS AND ALERTS</div>
             <div id="alertOut" class="alert-out"></div>
           </div>
         </div>
 
-        <!-- F. SEVERE WEATHER BULLETIN -->
         <div class="b-block b-severe">
-          <div class="b-bar">⛈ F. SEVERE WEATHER BULLETIN</div>
-          <div class="sev-grid">
+          <div class="b-bar">⛈ SEVERE WEATHER BULLETIN</div>
+          <div class="sev-grid" id="sevGrid">
             <div><h4>SITUATION</h4><p class="pre" data-out="sevSituation"></p></div>
             <div><h4>EXPECTED HAZARDS</h4><p class="pre" data-out="sevHazards"></p></div>
             <div><h4>POSSIBLE IMPACTS</h4><p class="pre" data-out="sevImpacts"></p></div>
             <div><h4>SAFETY REMINDERS</h4><p class="pre" data-out="sevSafety"></p></div>
           </div>
-          <div class="b-next"><b>NEXT UPDATE:</b> <span data-out="sevNext"></span></div>
+          <div class="sev-none" id="sevNone">NO BULLETINS ISSUED</div>
         </div>
+
+        <div class="b-nextbar">NEXT ISSUANCE WILL BE ON: <span data-out="sevNext"></span></div>
 
         <div class="b-foot">
           <b>11-VISIONARIES • MULTI-HAZARD BULLETIN</b>
-          <span>For educational and school information use.</span>
-          <span>Always verify official warnings with authorized government weather and disaster agencies.</span>
-          <span class="ue">User-entered information. Verify official weather and hazard bulletins before making safety decisions. Prepared by: <span data-out="by"></span></span>
+          <span class="pre" data-out="footnote"></span>
+          <span class="ue">Prepared by: <span data-out="by"></span></span>
         </div>
 
       </div>
@@ -170,6 +171,7 @@
 
 </main>
 
+<script src="deped.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

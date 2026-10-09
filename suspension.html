@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11-VISIONARIES Class Suspension Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.sp{max-width:1000px;margin:20px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:800px){.sp{grid-template-columns:1fr}}
+.result{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1);position:sticky;top:10px}
+.result h2{margin:0 0 8px;font-family:Montserrat,Poppins,sans-serif;color:#1e0a4a}
+.big{display:inline-block;font:900 26px Montserrat,Poppins,sans-serif;padding:8px 16px;border-radius:10px;color:#fff;margin-bottom:10px}
+.lv1{background:#16803c}.lv2{background:#f9c80e;color:#1e0a4a}.lv3{background:#f57c00}.lv4{background:#d32f2f}
+.result ul{padding-left:18px;margin:6px 0}.result li{margin:3px 0;font-size:14px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.facts div{background:#f3ecff;border-radius:8px;padding:8px;font-size:13px}
+.facts b{display:block;color:#5b17e6;font-size:11px;text-transform:uppercase}
+.auto{background:#ffe3e3;border-left:6px solid #d32f2f;padding:8px 10px;border-radius:6px;font-weight:600;font-size:13px;margin:8px 0}
+</style>
+</head>
+<body>
+<header class="app-header"><h1>11-VISIONARIES</h1><p>CLASS SUSPENSION PREDICTOR • DepEd Order No. 14, s. 2026</p></header>
+<main class="sp">
+  <section class="controls" style="max-width:none;flex:none">
+    <div class="toolbar"><a class="btn" href="index.html" style="text-decoration:none">← Bulletin Generator</a><button class="btn danger" id="reset">↺ Reset</button></div>
+    <details class="panel" open><summary>Expected hazards and conditions</summary><div class="panel-body" id="fields"></div></details>
+    <p class="note-small">Enter the conditions that are announced or forecast. Select the <b>highest</b> level for each hazard; the predictor applies the highest resulting level, as the Order advises when hazards overlap.</p>
+  </section>
+  <section class="result" id="out"></section>
+</main>
+<script src="deped.js"></script>
+<script src="suspension.js"></script>
+</body>
+</html>
