@@ -1,3 +1,11 @@
+/* Self-hosted fonts (Montserrat, Poppins - SIL Open Font License) */
+@font-face{font-family:"Montserrat";font-style:normal;font-weight:700;font-display:block;src:url("fonts/montserrat-latin-700-normal.woff2") format("woff2");}
+@font-face{font-family:"Montserrat";font-style:normal;font-weight:800;font-display:block;src:url("fonts/montserrat-latin-800-normal.woff2") format("woff2");}
+@font-face{font-family:"Montserrat";font-style:normal;font-weight:900;font-display:block;src:url("fonts/montserrat-latin-900-normal.woff2") format("woff2");}
+@font-face{font-family:"Poppins";font-style:normal;font-weight:400;font-display:block;src:url("fonts/poppins-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"Poppins";font-style:normal;font-weight:500;font-display:block;src:url("fonts/poppins-latin-500-normal.woff2") format("woff2");}
+@font-face{font-family:"Poppins";font-style:normal;font-weight:600;font-display:block;src:url("fonts/poppins-latin-600-normal.woff2") format("woff2");}
+@font-face{font-family:"Poppins";font-style:normal;font-weight:700;font-display:block;src:url("fonts/poppins-latin-700-normal.woff2") format("woff2");}
 :root{
   --navy:#1e0a4a; --navy2:#5b17e6; --blue:#7c3aed; --sky:#efe8ff;
   --yellow:#f9c80e; --orange:#f57c00; --red:#d32f2f; --dred:#7f0000; --grey:#607d8b;

@@ -1,5 +1,7 @@
 /* 11-VISIONARIES Multi-Hazard Bulletin Generator v3 */
 "use strict";
+/* PNG sharpness: 2 = 2160 x 2700 px (same layout as 1080 x 1350, double the detail) */
+const HD_RATIO = 2;
 const NS = "Not specified", W = 1080, H = 1350, QUAKE_RADIUS_KM = 300;
 
 const HAZARDS = ["Thunderstorm","Heavy Rainfall","Flood","Flash Flood","Landslide","Strong Winds","Tropical Cyclone","Storm Surge","Extreme Heat","Other"];
@@ -306,24 +308,20 @@ function bind() {
   window.addEventListener("resize", fitPreview);
 }
 
-/* ---------- Font embedding: Google Fonts (latin) inlined as base64 so the PNG keeps Montserrat/Poppins ---------- */
+/* ---------- Font embedding: the self-hosted files in /fonts are inlined (base64) so the PNG keeps Montserrat/Poppins ---------- */
+const FONT_FILES = [["Montserrat",700],["Montserrat",800],["Montserrat",900],["Poppins",400],["Poppins",500],["Poppins",600],["Poppins",700]];
 let fontCSSCache = null;
 const blobToDataURL = b => new Promise(res => { const r = new FileReader(); r.onloadend = () => res(r.result); r.readAsDataURL(b); });
 async function buildFontCSS() {
-  if (fontCSSCache !== null) return fontCSSCache;
-  fontCSSCache = "";
+  if (fontCSSCache) return fontCSSCache;
   try {
-    const href = [...document.querySelectorAll('link[href*="fonts.googleapis.com"]')].map(l => l.href).find(Boolean);
-    if (!href) return fontCSSCache;
-    const css = await (await fetch(href)).text();
-    const faces = [...css.matchAll(/\/\*\s*([\w-]+)\s*\*\/\s*(@font-face\s*\{[^}]*\})/g)].filter(m => m[1] === "latin").map(m => m[2]);
-    const out = await Promise.all(faces.map(async face => {
-      const m = face.match(/url\((https:[^)]+)\)/); if (!m) return "";
-      const data = await blobToDataURL(await (await fetch(m[1])).blob());
-      return face.replace(m[1], data);
+    const parts = await Promise.all(FONT_FILES.map(async ([name, w]) => {
+      const res = await fetch(`fonts/${name.toLowerCase()}-latin-${w}-normal.woff2`);
+      if (!res.ok) throw new Error("font file missing: " + name + " " + w);
+      return `@font-face{font-family:"${name}";font-style:normal;font-weight:${w};src:url(${await blobToDataURL(await res.blob())}) format("woff2");}`;
     }));
-    fontCSSCache = out.join("\n");
-  } catch (e) { console.warn("Font embedding unavailable:", e); }
+    fontCSSCache = parts.join("\n");
+  } catch (e) { console.warn("Font embedding unavailable:", e); fontCSSCache = ""; }
   return fontCSSCache;
 }
 
@@ -339,18 +337,24 @@ async function generatePNG() {
     if (document.fonts) { await Promise.all(["900 40px Montserrat","800 20px Montserrat","400 14px Poppins","700 14px Poppins"].map(f => document.fonts.load(f))).catch(() => {}); await document.fonts.ready; }
     await preloadImage(state.image);
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    let blob;
+    let blob, lowRes = !window.htmlToImage && HD_RATIO < 2;
     if (window.htmlToImage) {
       /* Primary: browser-native rendering (SVG foreignObject) - matches the live preview far more closely */
       const fontCSS = await buildFontCSS();
-      const opts = {width: W, height: H, pixelRatio: 1, cacheBust: true, backgroundColor: "#ffffff", style: {transform: "none", margin: "0"}, ...(fontCSS ? {fontEmbedCSS: fontCSS} : {})};
-      await window.htmlToImage.toPng($("bulletin"), opts).catch(() => {});   // warm-up pass so fonts/images are embedded
-      const dataUrl = await window.htmlToImage.toPng($("bulletin"), opts);
-      blob = await (await fetch(dataUrl)).blob();
+      const opts = {width: W, height: H, pixelRatio: HD_RATIO, cacheBust: true, backgroundColor: "#ffffff", style: {transform: "none", margin: "0"}, ...(fontCSS ? {fontEmbedCSS: fontCSS} : {})};
+      await window.htmlToImage.toPng($("bulletin"), {...opts, pixelRatio: 1}).catch(() => {});   // warm-up pass so fonts/images are embedded
+      let dataUrl;
+      try { dataUrl = await window.htmlToImage.toPng($("bulletin"), opts); blob = await (await fetch(dataUrl)).blob(); }
+      catch (e) { dataUrl = null; }
+      if (!blob || blob.size < 5000) {   // some phones cannot make a canvas this large: retry at standard size
+        dataUrl = await window.htmlToImage.toPng($("bulletin"), {...opts, pixelRatio: 1});
+        blob = await (await fetch(dataUrl)).blob();
+        lowRes = true;
+      }
     } else {
       /* Fallback: html2canvas */
       const canvas = await html2canvas($("bulletin"), {
-      width: W, height: H, scale: 1, backgroundColor: "#ffffff", useCORS: true, logging: false, scrollX: 0, scrollY: 0,
+      width: W, height: H, scale: HD_RATIO, backgroundColor: "#ffffff", useCORS: true, logging: false, scrollX: 0, scrollY: 0,
       windowWidth: Math.max(W, document.documentElement.clientWidth),
       onclone: doc => { doc.getElementById("scaler").style.transform = "none"; doc.getElementById("previewWrap").style.cssText = `position:static;width:${W}px;height:${H}px;overflow:visible;`; doc.getElementById("bulletin").style.margin = "0"; }
     });
@@ -361,7 +365,7 @@ async function generatePNG() {
     a.href = URL.createObjectURL(blob);
     a.download = `11-VISIONARIES_Multi-Hazard_Bulletin_${state.date || new Date().toISOString().slice(0, 10)}.png`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    setStatus("PNG successfully generated.", "ok");
+    setStatus("PNG successfully generated." + (lowRes ? " (Standard size 1080 × 1350 - device could not make HD.)" : " (HD 2160 × 2700)"), "ok");
   } catch (err) { console.error(err); setStatus("PNG export failed: " + err.message, "err"); } finally { btn.disabled = false; }
 }
 
