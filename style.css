@@ -152,3 +152,24 @@ body{margin:0;font-family:"Poppins","Segoe UI",Arial,sans-serif;background:#ebe6
 .b-foot{padding:6px 12px;font-size:11.5px}.b-foot .ue{font-size:10.5px}
 .b-metrics b{font-size:15px}.b-row .v{max-height:64px;font-size:14px;padding:6px 12px}.b-row .k{padding:6px 12px}
 .sev-grid p{font-size:12.5px}
+
+/* ---------- v4: box fixes ---------- */
+.row2{height:172px}.row3{height:174px}
+.row2>.b-block:nth-child(1){flex:.8}.row2>.b-block:nth-child(2){flex:1}.row2>.b-block:nth-child(3){flex:1.7}
+.tc-grid{grid-template-columns:1fr 1fr 1fr}.tc-grid .wide{grid-column:span 2}
+.tc-grid b{display:block;line-height:1.2;overflow-wrap:anywhere}
+#tcBlock .mini{max-height:38px;overflow:hidden}
+.row3 .b-block{overflow:hidden}
+.quake-out{gap:3px;padding:2px 8px}
+.q{padding:1px 8px;min-height:24px;line-height:1.15}
+.q>span:nth-child(2){flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q .i{flex:none;background:#5b17e6;color:#fff;border-radius:5px;padding:1px 7px;font-weight:700;font-size:11px}
+
+/* ---------- v4: print keeps backgrounds and colours ---------- */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{background:#fff!important;margin:0}
+  .app{display:block;padding:0;margin:0;max-width:none}
+  .preview-wrap{position:static!important;width:788px!important;height:985px!important;overflow:hidden!important;margin:0 auto}
+  #scaler{transform:scale(.73)!important;transform-origin:top left;zoom:1!important}
+}

@@ -28,7 +28,7 @@ const SECTIONS = [
   ["Footnote", [["footnote","Bulletin footnote","ta"]]]
 ];
 const QUAKE_FIELDS = [["quakeLabel","Reference point name"],["quakeLat","Latitude","number"],["quakeLon","Longitude","number"],
-  ["quakeText","Top 3 earthquakes — one per line: Magnitude | Distance km | Location | Date-Time","ta"]];
+  ["quakeText","Top 3 earthquakes — one per line: Magnitude | Distance km | Location | Date-Time | Intensity (optional, e.g. V)","ta"]];
 
 const DEFAULT_FOOT = "For educational and school information use.\nAlways verify official warnings with authorized government weather and disaster agencies.\nUser-entered information. Verify official weather and hazard bulletins before making safety decisions.";
 
@@ -129,7 +129,7 @@ function gaugeSVG(v) {
 /* ---------- Earthquakes ---------- */
 function parseQuakes() {
   return String(state.quakeText || "").split("\n").map(l => l.split("|").map(s => s.trim())).filter(p => p[0]).slice(0, 3)
-    .map(p => ({mag: p[0], dist: p[1], loc: p[2], time: p[3]}));
+    .map(p => ({mag: p[0], dist: p[1], loc: p[2], time: p[3], int: p[4]}));
 }
 
 /* ---------- Render ---------- */
@@ -174,13 +174,13 @@ function render() {
   $("quakeHead").textContent = `Within ${QUAKE_RADIUS_KM} km of ${String(state.quakeLabel).trim() || NS}`;
   $("quakeOut").innerHTML = qs.length ? qs.map(q => {
     const m = parseFloat(q.mag), c = m >= 5 ? "" : m >= 4 ? "mid" : "lo";
-    return `<div class="q"><span class="m ${c}">M ${esc(q.mag)}</span><span>${esc(q.dist || "?")} km • ${esc(q.loc || NS)}${q.time ? " • " + esc(q.time) : ""}</span></div>`; }).join("")
+    return `<div class="q"><span class="m ${c}">M ${esc(q.mag)}</span><span>${esc(q.dist || "?")} km • ${esc(q.loc || NS)}${q.time ? " • " + esc(q.time) : ""}</span>${q.int ? `<span class="i">Intensity ${esc(String(q.int).toUpperCase())}</span>` : ""}</div>`; }).join("")
     : `<div class="msg">${state.quakeChecked ? "NO EARTHQUAKES RECORDED WITHIN 300 KM" : "NO EARTHQUAKE DATA ENTERED"}</div>`;
 
   /* DepEd level */
   let L, basis;
   if (state.depedMode && state.depedMode !== "auto") { L = DEPED.find(d => d.key === state.depedMode); basis = "Set manually by the bulletin preparer."; }
-  else { const r = depedLevel({tcws: state.tcws, heat: state.heatValue}); L = r.level;
+  else { const r = depedLevel({tcws: state.tcws, heat: state.heatValue, eq: Math.max(0, ...qs.map(q => ROMAN[String(q.int || "").toUpperCase()] || 0))}); L = r.level;
     basis = r.reasons.length ? "Basis: " + r.reasons.filter(x => x[0] === L.n).map(x => x[1]).join("; ") : "No trigger entered in this bulletin."; }
   $("depedOut").innerHTML = `<span class="lv ${L.cls}">LEVEL ${L.n} — ${L.key} (${L.en})</span><p>${L.desc}</p><small>${esc(basis)} • DepEd Order No. 14, s. 2026</small>`;
 
@@ -248,12 +248,24 @@ async function fetchPAGASA() {
 const rad = d => d * Math.PI / 180;
 const haversine = (a, b, c, d) => { const x = Math.sin(rad(c-a)/2)**2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(rad(d-b)/2)**2; return 12742 * Math.asin(Math.sqrt(x)); };
 
+const ROMAN = {I:1, II:2, III:3, IV:4, V:5, VI:6, VII:7, VIII:8};
+
+/* PHIVOLCS marks felt earthquakes with a link to a bulletin that lists reported/instrumental intensities */
+async function feltIntensity(url) {
+  const html = await proxied(url); if (!html) return "";
+  const t = htmlToText(html), i = t.search(/Reported Intensit/i);
+  const seg = t.slice(i >= 0 ? i : 0, (i >= 0 ? i : 0) + 1200);
+  const found = [...seg.matchAll(/Intensity\s+(VIII|VII|VI|IV|V|III|II|I)\b/gi)].map(m => m[1].toUpperCase());
+  return found.sort((a, b) => ROMAN[b] - ROMAN[a])[0] || "";
+}
+
 async function fetchQuakes() {
   const lat = parseFloat(state.quakeLat), lon = parseFloat(state.quakeLon);
   if (isNaN(lat) || isNaN(lon)) return setStatus("Enter the reference point's latitude and longitude first.", "err");
   const btn = $("btnQuake"); btn.disabled = true; setStatus("Fetching PHIVOLCS earthquake list…");
+  const BASE = "https://earthquake.phivolcs.dost.gov.ph/";
   try {
-    const html = await proxied("https://earthquake.phivolcs.dost.gov.ph/");
+    const html = await proxied(BASE);
     if (!html) return setStatus("Could not reach PHIVOLCS (blocked or offline). Enter earthquakes manually.", "err");
     const doc = new DOMParser().parseFromString(html, "text/html"), rows = [];
     doc.querySelectorAll("tr").forEach(tr => {
@@ -261,13 +273,17 @@ async function fetchQuakes() {
       if (c.length < 6) return;
       const la = parseFloat(c[1]), lo = parseFloat(c[2]), mg = parseFloat(c[4]);
       if ([la, lo, mg].some(isNaN)) return;
-      rows.push({time: c[0], mag: mg, loc: c[5], dist: haversine(lat, lon, la, lo)});
+      const a = tr.querySelector("td a[href]");
+      let url = ""; try { url = a ? new URL(a.getAttribute("href"), BASE).href : ""; } catch (e) {}
+      rows.push({time: c[0], mag: mg, loc: c[5], dist: haversine(lat, lon, la, lo), url});
     });
     if (!rows.length) return setStatus("PHIVOLCS page read, but no earthquake table was found. Enter manually.", "err");
     const near = rows.filter(r => r.dist <= QUAKE_RADIUS_KM).sort((a, b) => b.mag - a.mag).slice(0, 3);
-    state.quakeText = near.map(r => [r.mag.toFixed(1), Math.round(r.dist), r.loc, r.time].join(" | ")).join("\n");
+    setStatus("Reading intensity reports for felt earthquakes…");
+    await Promise.all(near.map(async r => { r.int = r.url ? await feltIntensity(r.url) : ""; }));
+    state.quakeText = near.map(r => [r.mag.toFixed(1), Math.round(r.dist), r.loc, r.time, r.int].join(" | ")).join("\n");
     state.quakeChecked = true; state.demo = false; syncForm(); render();
-    setStatus(`PHIVOLCS: ${rows.length} recent events read, ${near.length} within ${QUAKE_RADIUS_KM} km. Verify on the official site.`, "ok");
+    setStatus(`PHIVOLCS: ${rows.length} recent events read, ${near.length} within ${QUAKE_RADIUS_KM} km, ${near.filter(r => r.int).length} with intensity. Verify on the official site.`, "ok");
   } catch (e) { setStatus("PHIVOLCS fetch failed: " + e.message, "err"); } finally { btn.disabled = false; }
 }
 
@@ -290,6 +306,27 @@ function bind() {
   window.addEventListener("resize", fitPreview);
 }
 
+/* ---------- Font embedding: Google Fonts (latin) inlined as base64 so the PNG keeps Montserrat/Poppins ---------- */
+let fontCSSCache = null;
+const blobToDataURL = b => new Promise(res => { const r = new FileReader(); r.onloadend = () => res(r.result); r.readAsDataURL(b); });
+async function buildFontCSS() {
+  if (fontCSSCache !== null) return fontCSSCache;
+  fontCSSCache = "";
+  try {
+    const href = [...document.querySelectorAll('link[href*="fonts.googleapis.com"]')].map(l => l.href).find(Boolean);
+    if (!href) return fontCSSCache;
+    const css = await (await fetch(href)).text();
+    const faces = [...css.matchAll(/\/\*\s*([\w-]+)\s*\*\/\s*(@font-face\s*\{[^}]*\})/g)].filter(m => m[1] === "latin").map(m => m[2]);
+    const out = await Promise.all(faces.map(async face => {
+      const m = face.match(/url\((https:[^)]+)\)/); if (!m) return "";
+      const data = await blobToDataURL(await (await fetch(m[1])).blob());
+      return face.replace(m[1], data);
+    }));
+    fontCSSCache = out.join("\n");
+  } catch (e) { console.warn("Font embedding unavailable:", e); }
+  return fontCSSCache;
+}
+
 /* ---------- PNG export ---------- */
 function setStatus(msg, cls) { const s = $("status"); s.textContent = msg; s.className = "status " + (cls || ""); }
 const preloadImage = src => new Promise(res => { if (!src) return res(); const i = new Image(); i.onload = () => (i.decode ? i.decode().catch(() => {}).then(res) : res()); i.onerror = res; i.src = src; });
@@ -305,7 +342,8 @@ async function generatePNG() {
     let blob;
     if (window.htmlToImage) {
       /* Primary: browser-native rendering (SVG foreignObject) - matches the live preview far more closely */
-      const opts = {width: W, height: H, pixelRatio: 1, cacheBust: true, backgroundColor: "#ffffff", style: {transform: "none", margin: "0"}};
+      const fontCSS = await buildFontCSS();
+      const opts = {width: W, height: H, pixelRatio: 1, cacheBust: true, backgroundColor: "#ffffff", style: {transform: "none", margin: "0"}, ...(fontCSS ? {fontEmbedCSS: fontCSS} : {})};
       await window.htmlToImage.toPng($("bulletin"), opts).catch(() => {});   // warm-up pass so fonts/images are embedded
       const dataUrl = await window.htmlToImage.toPng($("bulletin"), opts);
       blob = await (await fetch(dataUrl)).blob();
